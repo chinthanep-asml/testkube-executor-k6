@@ -59,7 +59,8 @@ func (r *K6Runner) Run(execution testkube.Execution) (result testkube.ExecutionR
 		args = append(args, K6_RUN)
 	}
 
-	secret.NewEnvManager().GetVars(execution.Variables)
+	envManager := secret.NewEnvManagerWithVars(execution.Variables)
+	envManager.GetVars(execution.Variables)
 	for _, variable := range execution.Variables {
 		if variable.Name == "K6_CLOUD_TOKEN" {
 			// set as OS environment variable
@@ -97,8 +98,15 @@ func (r *K6Runner) Run(execution testkube.Execution) (result testkube.ExecutionR
 	// in case of a test file execution we will pass the
 	// file path as final parameter to k6
 	if execution.Content.IsFile() {
-		args = append(args, "test-content")
 		directory = r.Params.Datadir
+		if testkube.TestContentType(execution.Content.Type_) != testkube.TestContentTypeGitFile {
+			args = append(args, "test-content")
+		} else {
+			directory = filepath.Join(directory, "repo")
+			if execution.Content != nil && execution.Content.Repository != nil {
+				args = append(args, execution.Content.Repository.Path)
+			}
+		}
 	}
 
 	// in case of Git directory we will run k6 here and
@@ -115,7 +123,8 @@ func (r *K6Runner) Run(execution testkube.Execution) (result testkube.ExecutionR
 	}
 
 	output.PrintEvent("Running", directory, "k6", args)
-	output, err := executor.Run(directory, "k6", args...)
+	output, err := executor.Run(directory, "k6", envManager, args...)
+	output = envManager.Obfuscate(output)
 	return finalExecutionResult(string(output), err), nil
 }
 
