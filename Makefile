@@ -1,4 +1,4 @@
-NAME ?= testkube-k6-executor
+NAME ?= testkube-dpk6-executor
 BIN_DIR ?= $(HOME)/bin
 NAMESPACE ?= "default"
 
